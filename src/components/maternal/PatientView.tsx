@@ -1,40 +1,148 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   User, 
   Phone, 
-  MapPin, 
+  Mail, 
   Calendar, 
   Droplet, 
-  AlertTriangle,
-  Activity,
-  Heart,
-  Stethoscope,
-  TestTube,
   ArrowLeft,
-  Edit
+  Edit,
+  ChevronDown,
+  TrendingUp
 } from "lucide-react";
 import { getAllMaternalPatients, type MaternalPatient } from "@/services/database/maternal-mortality";
 
-interface BloodTestResult {
-  date: string;
-  hemoglobin: string;
-  hematocrit: string;
-  platelets: string;
-  glucose: string;
+interface TestDataPoint {
+  week: number;
+  value: number;
+}
+
+interface TestInfo {
+  name: string;
+  unit: string;
+  currentLevel: number;
+  normalRange: string;
+  status: 'normal' | 'high' | 'low';
+  data: TestDataPoint[];
 }
 
 export const PatientView = () => {
   const { patientId } = useParams<{ patientId: string }>();
   const navigate = useNavigate();
   const [patient, setPatient] = useState<MaternalPatient | null>(null);
-  const [activeTab, setActiveTab] = useState("overview");
+  const [selectedTest, setSelectedTest] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
+
+  // Mock test data for different test types
+  const testData: Record<string, TestInfo> = {
+    'hcg-levels': {
+      name: 'HCG Levels',
+      unit: 'mIU/mL',
+      currentLevel: 8200,
+      normalRange: '2,700-78,100',
+      status: 'normal',
+      data: [
+        { week: 4, value: 0 },
+        { week: 5, value: 750 },
+        { week: 6, value: 1200 },
+        { week: 8, value: 7500 },
+        { week: 10, value: 14000 },
+        { week: 12, value: 22000 },
+        { week: 16, value: 18000 },
+        { week: 20, value: 11500 },
+        { week: 24, value: 8200 }
+      ]
+    },
+    'blood-pressure': {
+      name: 'Blood Pressure (Systolic)',
+      unit: 'mmHg',
+      currentLevel: 118,
+      normalRange: '90-140',
+      status: 'normal',
+      data: [
+        { week: 8, value: 115 },
+        { week: 12, value: 120 },
+        { week: 16, value: 125 },
+        { week: 20, value: 122 },
+        { week: 24, value: 118 }
+      ]
+    },
+    'hemoglobin': {
+      name: 'Hemoglobin',
+      unit: 'g/dL',
+      currentLevel: 11.2,
+      normalRange: '11.0-15.0',
+      status: 'normal',
+      data: [
+        { week: 8, value: 12.5 },
+        { week: 12, value: 11.8 },
+        { week: 16, value: 11.5 },
+        { week: 20, value: 11.3 },
+        { week: 24, value: 11.2 }
+      ]
+    },
+    'glucose': {
+      name: 'Glucose Level',
+      unit: 'mg/dL',
+      currentLevel: 95,
+      normalRange: '70-140',
+      status: 'normal',
+      data: [
+        { week: 8, value: 88 },
+        { week: 12, value: 92 },
+        { week: 16, value: 94 },
+        { week: 20, value: 96 },
+        { week: 24, value: 95 }
+      ]
+    },
+    'blood': {
+      name: 'Blood Test (WBC Count)',
+      unit: '×10³/μL',
+      currentLevel: 8.5,
+      normalRange: '4.0-11.0',
+      status: 'normal',
+      data: [
+        { week: 8, value: 7.2 },
+        { week: 12, value: 7.8 },
+        { week: 16, value: 8.1 },
+        { week: 20, value: 8.4 },
+        { week: 24, value: 8.5 }
+      ]
+    },
+    'heartRate': {
+      name: 'Heart Rate',
+      unit: 'bpm',
+      currentLevel: 85,
+      normalRange: '60-100',
+      status: 'normal',
+      data: [
+        { week: 8, value: 78 },
+        { week: 12, value: 82 },
+        { week: 16, value: 84 },
+        { week: 20, value: 86 },
+        { week: 24, value: 85 }
+      ]
+    },
+    'urine': {
+      name: 'Urine Protein',
+      unit: 'mg/dL',
+      currentLevel: 15,
+      normalRange: '0-30',
+      status: 'normal',
+      data: [
+        { week: 8, value: 8 },
+        { week: 12, value: 12 },
+        { week: 16, value: 14 },
+        { week: 20, value: 16 },
+        { week: 24, value: 15 }
+      ]
+    }
+  };
 
   // Mock patient data for immediate testing
   const mockPatients: MaternalPatient[] = [
@@ -51,10 +159,10 @@ export const PatientView = () => {
       address: '123 Main St, Springfield, IL',
       district: 'Central District',
       village: 'Westlands',
-      gestationalAge: 32,
+      gestationalAge: 24,
       parity: 1,
       gravidity: 2,
-      expectedDeliveryDate: '2025-08-15',
+      expectedDeliveryDate: '2025-03-15',
       currentPregnancyNumber: 2,
       previousComplications: ['Preeclampsia'],
       chronicDiseases: ['Hypertension'],
@@ -70,7 +178,7 @@ export const PatientView = () => {
       facilityId: 'facility_001',
       status: 'active',
       createdAt: '2024-01-10T10:00:00Z',
-      updatedAt: '2025-05-28T15:30:00Z'
+      updatedAt: '2025-06-18T15:30:00Z'
     },
     {
       _id: 'mock_patient_002',
@@ -210,37 +318,10 @@ export const PatientView = () => {
     }
   ];
 
-  // Sample blood test results data
-  const bloodTestResults: BloodTestResult[] = [
-    {
-      date: "2025-04-01",
-      hemoglobin: "11.2 g/dL",
-      hematocrit: "33.5%",
-      platelets: "250 × 10³/μL",
-      glucose: "92 mg/dL"
-    },
-    {
-      date: "2025-05-01",
-      hemoglobin: "10.8 g/dL",
-      hematocrit: "32.1%",
-      platelets: "240 × 10³/μL",
-      glucose: "95 mg/dL"
-    },
-    {
-      date: "2025-05-28",
-      hemoglobin: "10.5 g/dL",
-      hematocrit: "31.8%",
-      platelets: "235 × 10³/μL",
-      glucose: "98 mg/dL"
-    }
-  ];
-
   useEffect(() => {
-    // Use mock data to find the patient
+    // Find patient in mock data
     const foundPatient = mockPatients.find(p => p._id === patientId);
-    if (foundPatient) {
-      setPatient(foundPatient);
-    }
+    setPatient(foundPatient || null);
     setIsLoading(false);
   }, [patientId]);
 
@@ -255,26 +336,117 @@ export const PatientView = () => {
     return age;
   };
 
-  const getRiskLevel = (patient: MaternalPatient) => {
-    if (patient.chronicDiseases.length > 0 || patient.gestationalAge > 35) {
-      return { level: "HIGH RISK", variant: "destructive" as const };
-    } else if (patient.gestationalAge > 30 || patient.parity > 3) {
-      return { level: "MEDIUM RISK", variant: "secondary" as const };
-    }
-    return { level: "LOW RISK", variant: "default" as const };
-  };
-
-  const getPatientDisplayId = (nationalId: string) => {
-    const numericPart = nationalId.replace(/\D/g, '').slice(-3);
-    return `P${numericPart.padStart(3, '0')}`;
+  const handleBack = () => {
+    navigate('/maternal/patient-management');
   };
 
   const handleEdit = () => {
     navigate(`/maternal/patient-edit/${patientId}`);
   };
 
-  const handleBack = () => {
-    navigate('/maternal/patient-management');
+  const handleTestSelect = (testValue: string) => {
+    setSelectedTest(testValue);
+  };
+
+  // Simple SVG Line Chart Component
+  const LineChart = ({ data, testInfo }: { data: TestDataPoint[], testInfo: TestInfo }) => {
+    const width = 800;
+    const height = 400;
+    const padding = 60;
+    
+    const maxValue = Math.max(...data.map(d => d.value)) * 1.1;
+    const minValue = 0;
+    const maxWeek = Math.max(...data.map(d => d.week));
+    const minWeek = Math.min(...data.map(d => d.week));
+    
+    const xScale = (week: number) => ((week - minWeek) / (maxWeek - minWeek)) * (width - 2 * padding) + padding;
+    const yScale = (value: number) => height - padding - ((value - minValue) / (maxValue - minValue)) * (height - 2 * padding);
+    
+    const pathData = data.map((point, index) => {
+      const x = xScale(point.week);
+      const y = yScale(point.value);
+      return index === 0 ? `M ${x} ${y}` : `L ${x} ${y}`;
+    }).join(' ');
+
+    return (
+      <div className="w-full">
+        <svg width="100%" height="400" viewBox={`0 0 ${width} ${height}`} className="overflow-visible">
+          {/* Grid lines */}
+          <defs>
+            <pattern id="grid" width="50" height="50" patternUnits="userSpaceOnUse">
+              <path d="M 50 0 L 0 0 0 50" fill="none" stroke="#e5e7eb" strokeWidth="1"/>
+            </pattern>
+          </defs>
+          <rect width={width} height={height} fill="url(#grid)" opacity="0.5"/>
+          
+          {/* Y-axis labels */}
+          {[0, 0.25, 0.5, 0.75, 1].map((ratio) => {
+            const value = minValue + (maxValue - minValue) * ratio;
+            const y = yScale(value);
+            return (
+              <g key={ratio}>
+                <text x={padding - 10} y={y + 5} textAnchor="end" className="text-sm fill-gray-500">
+                  {value.toLocaleString()}
+                </text>
+                <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#e5e7eb" strokeWidth="1"/>
+              </g>
+            );
+          })}
+          
+          {/* X-axis labels */}
+          {data.map((point) => {
+            const x = xScale(point.week);
+            return (
+              <text key={point.week} x={x} y={height - padding + 20} textAnchor="middle" className="text-sm fill-gray-500">
+                {point.week}
+              </text>
+            );
+          })}
+          
+          {/* X-axis title */}
+          <text x={width / 2} y={height - 10} textAnchor="middle" className="text-sm fill-gray-600 font-medium">
+            Weeks
+          </text>
+          
+          {/* Y-axis title */}
+          <text x={20} y={height / 2} textAnchor="middle" transform={`rotate(-90, 20, ${height / 2})`} className="text-sm fill-gray-600 font-medium">
+            {testInfo.name} ({testInfo.unit})
+          </text>
+          
+          {/* Line */}
+          <path d={pathData} fill="none" stroke="url(#gradient)" strokeWidth="3"/>
+          
+          {/* Gradient definition */}
+          <defs>
+            <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#ec4899"/>
+              <stop offset="100%" stopColor="#8b5cf6"/>
+            </linearGradient>
+          </defs>
+          
+          {/* Data points */}
+          {data.map((point) => (
+            <circle
+              key={point.week}
+              cx={xScale(point.week)}
+              cy={yScale(point.value)}
+              r="6"
+              fill="#8b5cf6"
+              stroke="white"
+              strokeWidth="2"
+            />
+          ))}
+        </svg>
+        
+        {/* Legend */}
+        <div className="flex items-center justify-center mt-4">
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-0.5 bg-gradient-to-r from-pink-500 to-purple-600"></div>
+            <span className="text-sm text-purple-600">value</span>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   if (isLoading) {
@@ -292,289 +464,183 @@ export const PatientView = () => {
     );
   }
 
-  const risk = getRiskLevel(patient);
   const age = calculateAge(patient.dateOfBirth);
+  const dueDate = new Date(patient.expectedDeliveryDate).toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  const lastVisit = new Date(patient.updatedAt).toLocaleDateString('en-US', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
 
-  const sidebarItems = [
-    { id: "dashboard", label: "Dashboard", icon: Activity, path: "/maternal-mortality" },
-    { id: "patient-management", label: "Patient Management", icon: User, path: "/maternal/patient-management" },
-    { id: "data", label: "Data", icon: Activity, path: "/maternal-mortality" },
-    { id: "registration", label: "Registration", icon: User, path: "/maternal-mortality" },
-    { id: "risk-analysis", label: "Risk Analysis", icon: AlertTriangle, path: "/maternal-mortality" },
-    { id: "emergency", label: "Emergency Response", icon: AlertTriangle, path: "/maternal-mortality" },
-    { id: "analytics", label: "Analytics", icon: Activity, path: "/maternal-mortality" },
-  ];
+  // Generate email from name for display
+  const email = `${patient.firstName.toLowerCase()}.${patient.lastName.toLowerCase()}@email.com`;
+  
+  const currentTestInfo = selectedTest ? testData[selectedTest] : null;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="border-b bg-white">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm" onClick={() => navigate("/admin/dashboard")}>
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Admin
-              </Button>
-              <div>
-                <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-                  <Heart className="h-8 w-8 text-red-500" />
-                  Maternal Mortality Prevention - Patient Details
-                </h1>
-                <p className="text-muted-foreground">
-                  Viewing patient: {patient.firstName} {patient.lastName}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Button variant="outline" onClick={handleBack}>
-                Back to Patients
-              </Button>
-              <Button onClick={handleEdit}>
-                <Edit className="mr-2 h-4 w-4" />
-                Edit Patient
-              </Button>
-            </div>
+      <div className="bg-white border-b">
+        <div className="max-w-6xl mx-auto px-6 py-8">
+          <div className="flex items-center justify-between mb-4">
+            <Button variant="ghost" size="sm" onClick={handleBack} className="text-gray-600">
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back
+            </Button>
+            <Button variant="outline" onClick={handleEdit} className="flex items-center gap-2">
+              <Edit className="h-4 w-4" />
+              Edit Patient
+            </Button>
+          </div>
+          
+          <div className="text-center">
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">Maternal Health Monitor</h1>
+            <p className="text-gray-600 text-lg">Comprehensive pregnancy health tracking</p>
           </div>
         </div>
       </div>
 
-      {/* Main Layout with Sidebar */}
-      <div className="flex">
-        {/* Sidebar */}
-        <div className="w-64 bg-white border-r min-h-[calc(100vh-80px)]">
-          <div className="p-4">
-            <nav className="space-y-2">
-              {sidebarItems.map((item) => {
-                const Icon = item.icon;
-                const isActive = item.id === "patient-management";
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => navigate(item.path)}
-                    className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                      isActive
-                        ? "bg-primary text-primary-foreground"
-                        : "hover:bg-gray-100 text-gray-700"
-                    }`}
-                  >
-                    <Icon className="h-5 w-5" />
-                    <span className="font-medium">{item.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
-          </div>
-        </div>
-
-        {/* Main Content */}
-        <div className="flex-1 p-6">
-          <div className="space-y-6">
-
-      {/* Patient Info Card */}
-      <Card>
-        <CardContent className="p-6">
-          <div className="flex items-start justify-between">
-            <div className="flex items-start space-x-4">
-              <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                <User className="h-6 w-6 text-blue-600" />
-              </div>
-              <div className="space-y-1">
-                <h2 className="text-xl font-semibold">
-                  {patient.firstName} {patient.lastName}
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Patient ID: {getPatientDisplayId(patient.nationalId)}
-                </p>
-              </div>
-            </div>
-            <Badge variant={risk.variant}>{risk.level}</Badge>
-          </div>
-
-          <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="flex items-center space-x-2">
-              <Calendar className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Age</p>
-                <p className="font-medium">{age} years</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Phone className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Phone</p>
-                <p className="font-medium">{patient.phoneNumber}</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Address</p>
-                <p className="font-medium">{patient.address}</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Heart className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Blood Type</p>
-                <p className="font-medium">{patient.bloodType || "O+"}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Gestational Week</p>
-              <p className="font-medium">{patient.gestationalAge} weeks</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Due Date</p>
-              <p className="font-medium">{new Date(patient.expectedDeliveryDate).toLocaleDateString()}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Last Visit</p>
-              <p className="font-medium">{new Date(patient.updatedAt).toLocaleDateString()}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Critical Alerts */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-red-500" />
-            Critical Alerts
-            <Badge variant="destructive" className="ml-2">1</Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-start space-x-3 p-3 bg-yellow-50 border-l-4 border-yellow-400 rounded">
-            <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
-            <div>
-              <h4 className="font-medium text-yellow-800">Low Hemoglobin Alert</h4>
-              <p className="text-sm text-yellow-700">
-                {patient.firstName} {patient.lastName}: Hemoglobin 10.5 g/dL - Below normal range
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Tabs Section */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <Activity className="h-4 w-4" />
-            Overview
-          </TabsTrigger>
-          <TabsTrigger value="vital-signs" className="flex items-center gap-2">
-            <Heart className="h-4 w-4" />
-            Vital Signs
-          </TabsTrigger>
-          <TabsTrigger value="lab-tests" className="flex items-center gap-2">
-            <TestTube className="h-4 w-4" />
-            Lab Tests
-          </TabsTrigger>
-          <TabsTrigger value="ultrasound" className="flex items-center gap-2">
-            <Stethoscope className="h-4 w-4" />
-            Ultrasound
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="overview" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Patient Overview</CardTitle>
-              <CardDescription>General information and current status</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <h4 className="font-medium mb-2">Medical History</h4>
-                  <div className="space-y-1">
-                    <p className="text-sm">Parity: {patient.parity}</p>
-                    <p className="text-sm">Gravidity: {patient.gravidity}</p>
-                    <p className="text-sm">Chronic Diseases: {patient.chronicDiseases.length > 0 ? patient.chronicDiseases.join(", ") : "None"}</p>
-                    <p className="text-sm">Allergies: {patient.allergies.length > 0 ? patient.allergies.join(", ") : "None"}</p>
+      {/* Main Content */}
+      <div className="max-w-6xl mx-auto px-6 py-8 space-y-6">
+        
+        {/* Patient Information Card */}
+        <Card className="bg-white shadow-sm">
+          <CardHeader className="pb-4">
+            <CardTitle className="flex items-center gap-2 text-gray-900">
+              <User className="h-5 w-5 text-pink-500" />
+              Patient Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            
+            {/* Basic Info Row */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <User className="h-5 w-5 text-pink-500" />
+                  <div>
+                    <p className="text-sm text-gray-500">Name</p>
+                    <p className="font-semibold text-gray-900">{patient.firstName} {patient.lastName}</p>
                   </div>
                 </div>
-                <div>
-                  <h4 className="font-medium mb-2">Current Status</h4>
-                  <div className="space-y-1">
-                    <p className="text-sm">Status: <Badge variant="outline">{patient.status}</Badge></p>
-                    <p className="text-sm">Facility: {patient.facilityId}</p>
-                    <p className="text-sm">Registered: {new Date(patient.registrationDate).toLocaleDateString()}</p>
+                
+                <div className="flex items-center gap-3">
+                  <Phone className="h-5 w-5 text-blue-500" />
+                  <div>
+                    <p className="text-sm text-gray-500">Phone</p>
+                    <p className="font-semibold text-gray-900">{patient.phoneNumber}</p>
                   </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+              
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <Calendar className="h-5 w-5 text-gray-500" />
+                  <div>
+                    <p className="text-sm text-gray-500">Age | Due Date</p>
+                    <p className="font-semibold text-gray-900">{age} years | {dueDate}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3">
+                  <Mail className="h-5 w-5 text-green-500" />
+                  <div>
+                    <p className="text-sm text-gray-500">Email</p>
+                    <p className="font-semibold text-gray-900">{email}</p>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-        <TabsContent value="vital-signs" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Vital Signs Monitoring</CardTitle>
-              <CardDescription>Recent vital signs and trends</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Vital signs data will be displayed here when available.</p>
-            </CardContent>
-          </Card>
-        </TabsContent>
+            {/* Status Cards Row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="bg-pink-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-1">Current Week</p>
+                <p className="text-2xl font-bold text-pink-600">{patient.gestationalAge} weeks</p>
+              </div>
+              
+              <div className="bg-purple-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-1">Blood Type</p>
+                <p className="text-2xl font-bold text-purple-600">{patient.bloodType}</p>
+              </div>
+              
+              <div className="bg-blue-50 rounded-lg p-4">
+                <p className="text-sm text-gray-600 mb-1">Last Visit</p>
+                <p className="text-xl font-bold text-blue-600">{lastVisit}</p>
+              </div>
+            </div>
+            
+          </CardContent>
+        </Card>
 
-        <TabsContent value="lab-tests" className="space-y-4">
-          <Card>
+        {/* Select Maternal Test Section */}
+        <Card className="bg-white shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-gray-900">Select Maternal Test</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Select value={selectedTest} onValueChange={handleTestSelect}>
+              <SelectTrigger className="w-full bg-gradient-to-r from-pink-500 to-purple-600 text-white border-0 h-12">
+                <SelectValue placeholder="Select a test type" />
+                <ChevronDown className="h-4 w-4 ml-2" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="hcg-levels">HCG Levels</SelectItem>
+                <SelectItem value="blood-pressure">Blood Pressure</SelectItem>
+                <SelectItem value="hemoglobin">Hemoglobin</SelectItem>
+                <SelectItem value="glucose">Glucose Level</SelectItem>
+                <SelectItem value="blood">Blood Test</SelectItem>
+                <SelectItem value="heartRate">Heart Rate</SelectItem>
+                <SelectItem value="urine">Urine Test</SelectItem>
+              </SelectContent>
+            </Select>
+          </CardContent>
+        </Card>
+
+        {/* Test Results Chart */}
+        {currentTestInfo && (
+          <Card className="bg-white shadow-sm">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Droplet className="h-5 w-5 text-red-500" />
-                Blood Test Results
+              <CardTitle className="flex items-center gap-2 text-purple-700">
+                <TrendingUp className="h-5 w-5" />
+                {currentTestInfo.name} Over Time
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>DATE</TableHead>
-                    <TableHead>HEMOGLOBIN</TableHead>
-                    <TableHead>HEMATOCRIT</TableHead>
-                    <TableHead>PLATELETS</TableHead>
-                    <TableHead>GLUCOSE</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {bloodTestResults.map((result, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">{result.date}</TableCell>
-                      <TableCell className={parseFloat(result.hemoglobin) < 11.0 ? "text-red-600 font-medium" : ""}>
-                        {result.hemoglobin}
-                      </TableCell>
-                      <TableCell>{result.hematocrit}</TableCell>
-                      <TableCell>{result.platelets}</TableCell>
-                      <TableCell>{result.glucose}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <div className="space-y-6">
+                <LineChart data={currentTestInfo.data} testInfo={currentTestInfo} />
+                
+                {/* Current Status */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4 border-t">
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Current Level:</p>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {currentTestInfo.currentLevel.toLocaleString()} {currentTestInfo.unit} 
+                      <span className="text-sm text-gray-500 ml-2">
+                        (Normal range: {currentTestInfo.normalRange})
+                      </span>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-600 mb-1">Status:</p>
+                    <Badge 
+                      variant={currentTestInfo.status === 'normal' ? 'default' : 'destructive'}
+                      className={currentTestInfo.status === 'normal' ? 'bg-green-100 text-green-800' : ''}
+                    >
+                      {currentTestInfo.status === 'normal' ? 'Within Normal Range' : 
+                       currentTestInfo.status === 'high' ? 'Above Normal Range' : 'Below Normal Range'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
-        </TabsContent>
+        )}
 
-        <TabsContent value="ultrasound" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Ultrasound Results</CardTitle>
-              <CardDescription>Fetal development and monitoring</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">Ultrasound results will be displayed here when available.</p>
-            </CardContent>
-          </Card>
-                  </TabsContent>
-        </Tabs>
-          </div>
-        </div>
       </div>
     </div>
   );
